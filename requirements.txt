@@ -2,7 +2,6 @@ opencv-python
 dlib
 numpy
 imutils
-math
 scipy
 face_recognition
 mediapipe
