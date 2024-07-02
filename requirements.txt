@@ -1,3 +1,4 @@
+cmake
 opencv-python
 dlib
 numpy
