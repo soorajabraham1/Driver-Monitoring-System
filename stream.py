@@ -1,93 +1,81 @@
-import cv2
-import mediapipe as mp
+import cv2 as cv
 import numpy as np
-import streamlit as st
-from scipy.spatial import distance as dist
+import mediapipe as mp
+from code.volume import volume_control
+from code.incabin_utils import  detect_objects
+RIGHT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
+LEFT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
 
-# Initialize MediaPipe face mesh
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False, max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.5, min_tracking_confidence=0.5)
+# Load YOLO
+net = cv.dnn.readNet("models/yolov3-tiny.weights", "models/yolov3-tiny.cfg")
 
-# Define a function to calculate Eye Aspect Ratio (EAR)
-def calculate_ear(eye):
-    A = dist.euclidean(eye[1], eye[5])
-    B = dist.euclidean(eye[2], eye[4])
-    C = dist.euclidean(eye[0], eye[3])
-    ear = (A + B) / (2.0 * C)
-    return ear
+# Get layer names
+layer_names = net.getLayerNames()
 
-# Constants for drowsiness detection
-EAR_THRESHOLD = 0.25
-EAR_CONSEC_FRAMES = 48
+# Get the output layers
+output_layers = [layer_names[i - 1] for i in net.getUnconnectedOutLayers().flatten()]
 
-# Initialize frame counters
-COUNTER = 0
-ALARM_ON = False
+# Load the COCO class labels
+with open("models/coco.names", "r") as f:
+    classes = [line.strip() for line in f.readlines()]
+
+def open_len(arr):
+    y_arr = [y for _, y in arr]
+    return max(y_arr) - min(y_arr)
+
+def get_eye_landmarks(all_landmarks, eye_indices):
+    return all_landmarks[eye_indices]
+
+def draw_eye_landmarks(frame, left_eye, right_eye):
+    cv.polylines(frame, [left_eye], True, (0, 255, 0), 1, cv.LINE_AA)
+    cv.polylines(frame, [right_eye], True, (0, 255, 0), 1, cv.LINE_AA)
+
+def display_eye_heights(frame, max_left, len_left, max_right, len_right):
+    cv.putText(img=frame, text=f'Max: {max_left} Left Eye: {len_left}', fontFace=0, org=(10, 30), fontScale=0.5, color=(0, 255, 0))
+    cv.putText(img=frame, text=f'Max: {max_right} Right Eye: {len_right}', fontFace=0, org=(10, 50), fontScale=0.5, color=(0, 255, 0))
+
+def check_drowsiness(len_left, max_left, len_right, max_right, drowsy_frames):
+    if len_left <= int(max_left / 2) + 1 and len_right <= int(max_right / 2) + 1:
+        drowsy_frames += 1
+    else:
+        drowsy_frames = 0
+    return drowsy_frames
+
+def process_frame(frame, face_mesh, img_w, img_h, max_left, max_right, drowsy_frames):
+    rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+    results = face_mesh.process(rgb_frame)
+    if results.multi_face_landmarks:
+        all_landmarks = np.array([np.multiply([p.x, p.y], [img_w, img_h]).astype(int) for p in results.multi_face_landmarks[0].landmark])
+        right_eye, left_eye = all_landmarks[RIGHT_EYE], all_landmarks[LEFT_EYE]
+        draw_eye_landmarks(frame, left_eye, right_eye)
+        len_left, len_right = open_len(left_eye), open_len(right_eye)
+        max_left, max_right = max(max_left, len_left), max(max_right, len_right)
+        display_eye_heights(frame, max_left, len_left, max_right, len_right)
+        drowsy_frames = check_drowsiness(len_left, max_left, len_right, max_right, drowsy_frames)
+        if drowsy_frames > 20:
+            cv.putText(frame, 'ALERT', (200, 300), 0, 3, (0, 255, 0), 3)
+    return max_left, max_right, drowsy_frames
 
 def main():
-    st.title("Drowsiness Detection System")
+    mp_face_mesh = mp.solutions.face_mesh
     
-    # Initialize the video capture
-    cap = cv2.VideoCapture(0)
-    
-    stframe = st.empty()
-    
-    global COUNTER, ALARM_ON
+    cap = cv.VideoCapture(0)
+    drowsy_frames, max_left, max_right = 0, 0, 0
 
-    stop_button = st.button('Stop', key='stop_button')  # Unique key for the button
-
-    while cap.isOpened():
-        success, frame = cap.read()
-        if not success:
-            st.write("Ignoring empty camera frame.")
-            continue
-
-        # Convert the frame color from BGR to RGB
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        # Process the frame to detect face and landmarks
-        results = face_mesh.process(rgb_frame)
-
-        if results.multi_face_landmarks:
-            for face_landmarks in results.multi_face_landmarks:
-                landmarks = face_landmarks.landmark
-
-                # Extract the eye landmarks
-                left_eye = [landmarks[i] for i in [33, 160, 158, 133, 153, 144]]
-                right_eye = [landmarks[i] for i in [362, 385, 387, 263, 373, 380]]
-
-                # Convert normalized coordinates to pixel values
-                ih, iw, _ = frame.shape
-                left_eye = [(int(lm.x * iw), int(lm.y * ih)) for lm in left_eye]
-                right_eye = [(int(lm.x * iw), int(lm.y * ih)) for lm in right_eye]
-
-                # Calculate EAR for both eyes
-                left_ear = calculate_ear(left_eye)
-                right_ear = calculate_ear(right_eye)
-                ear = (left_ear + right_ear) / 2.0
-
-                # Visualize the landmarks
-                for point in left_eye + right_eye:
-                    cv2.circle(frame, point, 2, (0, 255, 0), -1)
-
-                # Check if EAR is below the threshold
-                if ear < EAR_THRESHOLD:
-                    COUNTER += 1
-                    if COUNTER >= EAR_CONSEC_FRAMES:
-                        if not ALARM_ON:
-                            ALARM_ON = True
-                            st.warning("Drowsiness Alert!")
-                else:
-                    COUNTER = 0
-                    ALARM_ON = False
-
-        # Display the resulting frame
-        stframe.image(frame, channels='BGR')
-
-        if stop_button:
-            break
+    with mp_face_mesh.FaceMesh(max_num_faces=1, refine_landmarks=True, min_detection_confidence=0.5, min_tracking_confidence=0.5) as face_mesh:
+        while True:
+            ret, frame = cap.read()
+            if not ret: break
+            frame = cv.flip(frame, 1)
+            img_h, img_w = frame.shape[:2]
+            max_left, max_right, drowsy_frames = process_frame(frame, face_mesh, img_w, img_h, max_left, max_right, drowsy_frames)
+            frame = detect_objects(frame, net, output_layers, classes, "cell phone")
+            frame = volume_control(frame)
+            cv.imshow('img', frame)
+            if cv.waitKey(1) == ord('q'): break
 
     cap.release()
+    cv.destroyAllWindows()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
