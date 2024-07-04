@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 import mediapipe as mp
 from code.volume import volume_control
-from code.incabin_utils import  detect_objects
+
 RIGHT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
 LEFT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
 
@@ -40,6 +40,42 @@ def check_drowsiness(len_left, max_left, len_right, max_right, drowsy_frames):
     else:
         drowsy_frames = 0
     return drowsy_frames
+
+def detect_objects(frame, net, output_layers, classes, target_class):
+    height, width, _ = frame.shape
+    blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
+    net.setInput(blob)
+    outs = net.forward(output_layers)
+    class_ids = []
+    confidences = []
+    boxes = []
+    for out in outs:
+        for detection in out:
+            scores = detection[5:]
+            class_id = np.argmax(scores)
+            confidence = scores[class_id]
+            if confidence > 0.5 and classes[class_id] == target_class:
+                center_x = int(detection[0] * width)
+                center_y = int(detection[1] * height)
+                w = int(detection[2] * width)
+                h = int(detection[3] * height)
+                x = int(center_x - w / 2)
+                y = int(center_y - h / 2)
+                boxes.append([x, y, w, h])
+                confidences.append(float(confidence))
+                class_ids.append(class_id)
+                frame = draw_filled_rounded_rectangle(frame, (400, 120), (640, 150), (0, 0, 255), 10, 1)
+                cv2.putText(frame, "Keep Phone Away", (440, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+    indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
+    for i in range(len(boxes)):
+        if i in indexes:
+            x, y, w, h = boxes[i]
+            label = str(classes[class_ids[i]])
+            confidence = confidences[i]
+            color = (0, 255, 0)  # Green
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(frame, f"{label} {confidence:.2f}", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    return frame
 
 def process_frame(frame, face_mesh, img_w, img_h, max_left, max_right, drowsy_frames):
     rgb_frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
