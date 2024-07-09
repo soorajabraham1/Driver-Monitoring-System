@@ -34,7 +34,8 @@ This project is an advanced Driver Monitoring System that performs real-time fac
     - **Implementation:**
         - A pre-trained model from `cv2.dnn` is used to predict facial expressions from the region of interest in the detected face.
         - The detected expression is displayed on the screen.
-
+        - ![Emotion Recognition](users/happy.png)
+        - 
 5. **Cell Phone Detection**
     - **Description:** Detects specific objects, such as cell phones, in the video stream to monitor and alert the user to keep away distractions.
     - **Implementation:**
@@ -42,6 +43,7 @@ This project is an advanced Driver Monitoring System that performs real-time fac
         - It processes each frame through the YOLO network to detect objects.
         - If a cell phone is detected with high confidence, an alert is displayed.
         - ![Cell Phone Detection](users/phone.png)
+        - 
 6. **Hand Gesture Recognition for Volume Control**
     - **Description:** Controls the system volume based on hand gestures.
     - **Implementation:**
@@ -49,6 +51,7 @@ This project is an advanced Driver Monitoring System that performs real-time fac
         - It calculates the vertical distance between the middle and index finger tips to adjust the system volume.
         - Volume changes are mapped to the distance moved by the hand gesture.
         - ![Volume Control](users/volume.png)
+        - 
 ## Project Structure and File Descriptions
 
 - **Main Script:** The main script initializes all models and variables, processes each frame from the webcam, and handles the main logic for face recognition, landmark detection, head pose estimation, and more.
