@@ -12,6 +12,7 @@ This project is an advanced Driver Monitoring System that performs real-time fac
         - The system loads user images from a directory, encodes the faces using the `face_recognition` library, and stores these encodings.
         - During runtime, the system captures frames from the webcam and uses `face_recognition` to locate and encode faces in the current frame.
         - It compares the current frame's face encodings with the stored encodings to identify and authenticate users.
+    - ![Face Recognition](users/face_recognition.png)
 
 2. **Facial Landmark Detection and Eye Aspect Ratio (EAR) Calculation**
     - **Description:** Detects facial landmarks and calculates the eye aspect ratio to monitor drowsiness.
@@ -19,12 +20,14 @@ This project is an advanced Driver Monitoring System that performs real-time fac
         - The system uses `dlib` to detect facial landmarks with a pre-trained shape predictor.
         - It extracts the coordinates of eye landmarks to compute the EAR, which helps in detecting if the user's eyes are closed for prolonged periods, indicating drowsiness.
         - If the EAR falls below a threshold for a certain number of consecutive frames, a drowsiness alert is triggered.
+    - ![Drowsiness Detection](users/drowsy.png)
 
 3. **Distraction Detection**
     - **Description:** Estimates the head pose to detect user distraction.
     - **Implementation:**
         - The project uses the `cv2.solvePnP` function to estimate the 3D pose of the user's head based on detected facial landmarks.
         - It calculates the pitch, yaw, and roll angles to determine if the user is looking away from the screen for an extended period, which triggers a distraction alert.
+    - ![Distraction Detection](users/dist.png)
 
 4. **Facial Expression Recognition**
     - **Description:** Recognizes the user's facial expressions and emotions.
