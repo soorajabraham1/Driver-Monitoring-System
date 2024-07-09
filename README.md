@@ -12,7 +12,7 @@ This project is an advanced Driver Monitoring System that performs real-time fac
         - The system loads user images from a directory, encodes the faces using the `face_recognition` library, and stores these encodings.
         - During runtime, the system captures frames from the webcam and uses `face_recognition` to locate and encode faces in the current frame.
         - It compares the current frame's face encodings with the stored encodings to identify and authenticate users.
-    - ![Face Recognition](users/face_recognition.png)
+    
 
 2. **Facial Landmark Detection and Eye Aspect Ratio (EAR) Calculation**
     - **Description:** Detects facial landmarks and calculates the eye aspect ratio to monitor drowsiness.
@@ -41,14 +41,14 @@ This project is an advanced Driver Monitoring System that performs real-time fac
         - The system loads the YOLO model and its configuration and class files.
         - It processes each frame through the YOLO network to detect objects.
         - If a cell phone is detected with high confidence, an alert is displayed.
-
+        - ![Cell Phone Detection](users/phone.png)
 6. **Hand Gesture Recognition for Volume Control**
     - **Description:** Controls the system volume based on hand gestures.
     - **Implementation:**
         - The project uses `mediapipe` to detect hand landmarks and track hand movements.
         - It calculates the vertical distance between the middle and index finger tips to adjust the system volume.
         - Volume changes are mapped to the distance moved by the hand gesture.
-
+        - ![Volume Control](users/volume.png)
 ## Project Structure and File Descriptions
 
 - **Main Script:** The main script initializes all models and variables, processes each frame from the webcam, and handles the main logic for face recognition, landmark detection, head pose estimation, and more.
